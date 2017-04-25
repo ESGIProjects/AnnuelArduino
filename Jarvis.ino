@@ -1,8 +1,30 @@
 #include <SPI.h>
 #include <SD.h>
+#include <Ethernet.h>
+#include <Keypad.h>
 #include <ctype.h>
 
 File passwordFile;
+String password;
+String attempt;
+
+byte mac[] = {0xDF, 0xAD, 0xAE, 0xEF, 0xDE, 0xAD};
+EthernetClient client;
+char serverName[] = "https://jarvis-esgi.herokuapp.com";
+int serverPort = 16898;
+char pageName[] = "/alert";
+
+const byte R_SIZE = 4;
+const byte C_SIZE = 4;
+char keys[R_SIZE][C_SIZE] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+byte rowPins[R_SIZE] = {10,9,8,7};
+byte colPins[C_SIZE] = {6,5,3,2};
+Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
 void setup() {
   Serial.begin(9600);
@@ -11,7 +33,15 @@ void setup() {
 }
 
 void loop() {
+  readKeyboard();
+}
 
+void readKeyboard(){
+  char key = kp.getKey();
+  if(key != NO_KEY && isDigit(key)){
+    Serial.println(key);
+    attempt += key;
+  }
 }
 
 void initializeSD(){
@@ -22,8 +52,10 @@ void initializeSD(){
     Serial.println("Communication is NOK !");
     return;
   }
-  
   Serial.println("Communication is OK !");
+}
+
+String getPassword(){
 }
 
 void setPassword(String password){
