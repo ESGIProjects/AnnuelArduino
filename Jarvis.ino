@@ -26,14 +26,53 @@ byte rowPins[R_SIZE] = {10,9,8,7};
 byte colPins[C_SIZE] = {6,5,3,2};
 Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
+int pirPin = 22;
+int pirState = LOW;
+int val = 0;
+int calibrationDelay = 30;
+boolean isCalibrate = false;
+
 void setup() {
   Serial.begin(9600);
+  pinMode(pirPin, INPUT);
   initializeSD();
   setPassword("1234");
 }
 
 void loop() {
+  if(!isCalibrate){
+    pirCalibration();
+  }
+  readPirState();
   readKeyboard();
+}
+
+void readPirState(){
+  val = digitalRead(pirPin);
+  Serial.println(val);
+  if(val == HIGH){
+      delay(300);
+      if(pirState == LOW){
+        Serial.println("Motion detected !");
+        pirState = HIGH;
+      }
+   }
+   else{
+    delay(300);
+    if(pirState == HIGH){
+      Serial.println("Motion ended !");
+      pirState =LOW;
+    }
+  } 
+}
+
+void pirCalibration(){
+  Serial.println("Pir Sensor Calibration !");
+  for(int i = 0; i < calibrationDelay; i++){
+    Serial.println(i);
+    delay(1000);
+  }
+  isCalibrate = true;
 }
 
 void readKeyboard(){
