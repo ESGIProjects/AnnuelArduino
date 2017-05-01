@@ -3,10 +3,16 @@
 #include <Ethernet.h>
 #include <Keypad.h>
 #include <ctype.h>
+#include <RFID.h>
+
+#define SS_PIN 9
+#define RST_PIN 8
 
 File passwordFile;
 String password;
 String attempt;
+
+const int buzzer = 9;
 
 byte mac[] = {0xDF, 0xAD, 0xAE, 0xEF, 0xDE, 0xAD};
 EthernetClient client;
@@ -16,38 +22,61 @@ char pageName[] = "/alert";
 
 const byte R_SIZE = 4;
 const byte C_SIZE = 4;
-char keys[R_SIZE][C_SIZE] = {
+char keys[R_SIZE][C_SIZE] = { 
   {'1','2','3','A'},
   {'4','5','6','B'},
   {'7','8','9','C'},
   {'*','0','#','D'}
 };
-byte rowPins[R_SIZE] = {10,9,8,7};
-byte colPins[C_SIZE] = {6,5,3,2};
+byte rowPins[R_SIZE] = {36,34,32,30}; //black pins on keyboard
+byte colPins[C_SIZE] = {37,35,33,31};
 Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
-int pirPin = 22;
+int pirPin = 2;
 int pirState = LOW;
 int val = 0;
 int calibrationDelay = 30;
 boolean isCalibrate = false;
 
+RFID rfid(SS_PIN, RST_PIN); 
+int UID[5];
+
 void setup() {
   Serial.begin(9600);
+  pinMode(buzzer,OUTPUT);
   pinMode(pirPin, INPUT);
   initializeSD();
   setPassword("1234");
+  SPI.begin();
+  rfid.init();
 }
 
 void loop() {
-  if(!isCalibrate){
-    pirCalibration();
-  }
-  readPirState();
-  readKeyboard();
+  //if(!isCalibrate){
+  //  pirCalibration();
+  //}
+  // analyze();
+  //readKeyboard();
+  checkRFID();
 }
 
-void readPirState(){
+void checkRFID(){
+  if (rfid.isCard()) {  
+    if (rfid.readCardSerial()) {        
+      Serial.print("L'UID est: ");
+      for(int i=0;i<=4;i++){
+        UID[i]=rfid.serNum[i];
+        Serial.print(UID[i],DEC);
+        Serial.print(".");
+      }
+      Serial.println("");
+    }          
+    rfid.halt();
+  }
+  delay(100);
+}
+
+void analyze(){
   val = digitalRead(pirPin);
   Serial.println(val);
   if(val == HIGH){
@@ -55,6 +84,8 @@ void readPirState(){
       if(pirState == LOW){
         Serial.println("Motion detected !");
         pirState = HIGH;
+        tone(buzzer,1000);
+        delay(300);
       }
    }
    else{
@@ -62,6 +93,8 @@ void readPirState(){
     if(pirState == HIGH){
       Serial.println("Motion ended !");
       pirState =LOW;
+      noTone(buzzer);
+      delay(300);
     }
   } 
 }
