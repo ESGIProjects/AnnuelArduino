@@ -5,21 +5,35 @@
 #include <ctype.h>
 #include <RFID.h>
 
+/**
+ * Pins for RFID reader
+ */
 #define SS_PIN 9
 #define RST_PIN 8
 
+/**
+ * Variables for manage password
+ */
 File passwordFile;
 String password;
 String attempt;
 
+/**
+ * Variable for Buzzer
+ */
 const int buzzer = 9;
 
-byte mac[] = {0xDF, 0xAD, 0xAE, 0xEF, 0xDE, 0xAD};
+/**
+ * Variables for Ethernet Shield
+ */
+byte mac[] = { 0xDC, 0xAD, 0xBA, 0xEF, 0xFA, 0xED };
 EthernetClient client;
-char serverName[] = "https://jarvis-esgi.herokuapp.com";
-int serverPort = 16898;
-char pageName[] = "/alert";
+IPAddress ip(192,168,1,1);
+char serverName[] = "jarvis-esgi.herokuapp.com";
 
+/**
+ * Variables for Keyboard
+ */
 const byte R_SIZE = 4;
 const byte C_SIZE = 4;
 char keys[R_SIZE][C_SIZE] = { 
@@ -32,12 +46,19 @@ byte rowPins[R_SIZE] = {36,34,32,30}; //black pins on keyboard
 byte colPins[C_SIZE] = {37,35,33,31};
 Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
+
+/**
+ * Variables for PIR
+ */
 int pirPin = 2;
 int pirState = LOW;
 int val = 0;
 int calibrationDelay = 30;
 boolean isCalibrate = false;
 
+/**
+ * Variable for RFID reader
+ */
 RFID rfid(SS_PIN, RST_PIN); 
 int UID[5];
 
@@ -49,15 +70,39 @@ void setup() {
   setPassword("1234");
   SPI.begin();
   rfid.init();
+
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // try to congifure using IP address instead of DHCP:
+    Ethernet.begin(mac, ip);
+  }
+  postRequest();
+}
+
+void postRequest(){
+  if (client.connect(serverName, 80)) {
+    Serial.println("Connection succeeded !");
+    // build the POST request
+    Serial.println("Sending post request...");
+    client.println("POST /api/alert HTTP/1.1");
+    client.println("Host: jarvis-esgi.herokuapp.com");
+    client.println("Content-Type: text/plain");
+    client.println("Cache-Control: no-cache");
+    client.println();
+    Serial.println("Request is send !");
+  } 
+  else {
+    Serial.println("Connection failed !");
+  }  
 }
 
 void loop() {
   //if(!isCalibrate){
   //  pirCalibration();
   //}
-  // analyze();
+  analyze();
   //readKeyboard();
-  checkRFID();
+  //checkRFID();
 }
 
 void checkRFID(){
@@ -165,4 +210,3 @@ boolean isValidPassword(String password){
   }
   return true;
 }
-
