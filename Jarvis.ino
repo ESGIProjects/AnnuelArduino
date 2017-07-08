@@ -6,10 +6,14 @@
 #include <RFID.h>
 
 /**
+ * PINS 4 AND 10 ARE USED BY THE SHIELD !!!
+ */
+
+/**
  * Pins for RFID reader
  */
-#define SS_PIN 9
-#define RST_PIN 8
+#define RST_PIN 9
+#define SDA_PIN 8
 
 /**
  * Variables for manage password
@@ -21,14 +25,15 @@ String attempt;
 /**
  * Variable for Buzzer
  */
-const int buzzer = 9;
+const int buzzer = 53;
+;
 
 /**
  * Variables for Ethernet Shield
  */
 byte mac[] = { 0xDC, 0xAD, 0xBA, 0xEF, 0xFA, 0xED };
 EthernetClient client;
-IPAddress ip(192,168,1,1);
+IPAddress ip(192,168,1,37);
 char serverName[] = "jarvis-esgi.herokuapp.com";
 
 /**
@@ -48,7 +53,7 @@ Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
 
 /**
- * Variables for PIR
+ * Variables for PIR (5V)
  */
 int pirPin = 2;
 int pirState = LOW;
@@ -59,24 +64,40 @@ boolean isCalibrate = false;
 /**
  * Variable for RFID reader
  */
-RFID rfid(SS_PIN, RST_PIN); 
+RFID rfid(SDA_PIN, RST_PIN); 
 int UID[5];
+
+boolean isPaused = true;
 
 void setup() {
   Serial.begin(9600);
+  noTone(buzzer);
   pinMode(buzzer,OUTPUT);
   pinMode(pirPin, INPUT);
   initializeSD();
   setPassword("1234");
+  checkPassword("1234");
   SPI.begin();
-  rfid.init();
-
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
-    // try to congifure using IP address instead of DHCP:
-    Ethernet.begin(mac, ip);
+  //rfid.init();
+  
+  /**if (Ethernet.begin(mac) == 0) {
+     Serial.println("Failed to configure Ethernet using DHCP");
+     //try to congifure using IP address instead of DHCP:
+     Ethernet.begin(mac, ip);
+     
   }
-  postRequest();
+  postRequest();**/
+}
+
+void loop() {
+  if(!isCalibrate){
+    pirCalibration();
+  }
+  analyze();
+  readKeyboard();
+  paused();
+  //getPassword();
+  //checkRFID();
 }
 
 void postRequest(){
@@ -93,16 +114,8 @@ void postRequest(){
   } 
   else {
     Serial.println("Connection failed !");
-  }  
-}
-
-void loop() {
-  //if(!isCalibrate){
-  //  pirCalibration();
-  //}
-  analyze();
-  //readKeyboard();
-  //checkRFID();
+    shutdown();
+  }
 }
 
 void checkRFID(){
@@ -153,12 +166,14 @@ void pirCalibration(){
   isCalibrate = true;
 }
 
-void readKeyboard(){
+char readKeyboard(){
   char key = kp.getKey();
   if(key != NO_KEY && isDigit(key)){
     Serial.println(key);
     attempt += key;
   }
+  Serial.println(key);
+  return key;
 }
 
 void initializeSD(){
@@ -166,17 +181,30 @@ void initializeSD(){
   the shield for the SD card port*/
   if(!SD.begin(4)){
     // if it's not OK, we stop the program
-    Serial.println("Communication is NOK !");
-    return;
+    Serial.println("Communication is NOK ! \n ");
+    shutdown();
   }
   Serial.println("Communication is OK !");
 }
 
-String getPassword(){
+boolean checkPassword(String attempt){
+  passwordFile = SD.open("pf.txt");
+  String content;
+  Serial.println("The file exists !");
+  while (passwordFile.available()) {
+      content = content + (char)passwordFile.read();
+  }
+  passwordFile.close();
+  if(content.equals(attempt)){
+    Serial.println("Success !");
+    return true;
+  }
+  Serial.println("Failure !");
+  return false;
 }
 
 void setPassword(String password){
-  if(password.length() > 6){
+  if(password.length() > 4){
     Serial.println("The password is too long !");
     return;
   }
@@ -189,7 +217,7 @@ void setPassword(String password){
     return;
   }
   
-  //if the file "pf.txt" exists, il will be erased
+  //if the file "pf.txt" exists, it will be erased
   if(SD.exists("pf.txt")){
      SD.remove("pf.txt");
      Serial.println("The password file is erased !");
@@ -209,4 +237,24 @@ boolean isValidPassword(String password){
     }
   }
   return true;
+}
+
+void shutdown(){
+  Serial.println("The program is shutdown !");
+  while(1){
+    //we create an infinite loop in order to simulate a shutdown
+  }
+}
+
+void paused(){
+  if(isPaused){
+    Serial.println("The program is in pause !");
+  while(isPaused){
+    if(readKeyboard() == 'D'){
+      isPaused = false;
+      Serial.println("The program is running !");
+    }
+    delay(200);
+  } 
+ }
 }
