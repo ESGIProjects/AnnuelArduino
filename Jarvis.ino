@@ -52,7 +52,6 @@ byte rowPins[R_SIZE] = {36, 34, 32, 30}; //black pins on keyboard
 byte colPins[C_SIZE] = {37, 35, 33, 31};
 Keypad kp = Keypad(makeKeymap(keys), rowPins, colPins, R_SIZE, C_SIZE);
 
-
 /**
    Variables for PIR (5V)
 */
@@ -60,7 +59,6 @@ int pirPin = 2;
 int pirState = LOW;
 int val = 0;
 int calibrationDelay = 30;
-boolean isCalibrate = false;
 
 /**
    Variable for RFID reader
@@ -81,9 +79,7 @@ void setup() {
   checkPassword("1234");
   SPI.begin();
   initEthernetConnection();
-  if (!isCalibrate) {
-    pirCalibration();
-  }
+  pirCalibration();
   standBy();
   //rfid.init();
 }
@@ -94,12 +90,15 @@ void loop() {
     if (attempt.length() == 4) {
       checkPassword(attempt);
       attempt = "";
+      isStandBy = true;
     }
     readKeyboard();
     alarmEnable();
-    readKeyboard();
   }
   else {
+    if (isStandBy) {
+      standBy();
+    }
     analyze();
     //readKeyboard();
     //getPassword();
@@ -251,7 +250,6 @@ void pirCalibration() {
     Serial.println(i);
     delay(1000);
   }
-  isCalibrate = true;
 }
 
 char readKeyboard() {
@@ -342,17 +340,16 @@ void standBy() {
     while (isStandBy) {
       if (readKeyboard() == 'D') {
         for (int i = 0; i < 10; i++) {
-          tone(buzzer, 10000, 100);
+          tone(buzzer, 1000,100);
           Serial.println(i);
           delay(1000);
           noTone(buzzer);
         }
-        tone(buzzer, 10000, 2000);
+        tone(buzzer, 1000, 2000);
         delay(2000);
         Serial.println("The program is running !");
         isStandBy = false;
       }
-      delay(200);
     }
   }
 }
